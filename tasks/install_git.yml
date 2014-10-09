@@ -1,0 +1,8 @@
+---
+
+- name: checkout source
+  git: repo="{{ rump_git_repo }}" dest="~/rump" version="{{ rump_git_version }}"
+  sudo: no
+
+- name: install from source
+  pip: name="~{{ ansible_ssh_user }}/rump[{{ rump_git_extras }}]" extra_args=-e

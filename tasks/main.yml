@@ -1,0 +1,16 @@
+---
+
+- include: install_git.yml
+  tags: [rump, rump-install]
+  when: rump_install_method == "git"
+
+- include: install_sync.yml
+  tags: [rump, rump-install]
+  when: rump_install_method == "sync"
+
+- include: install_pip.yml
+  tags: [rump, rump-install]
+  when: rump_install_method == "pip"
+
+- include: base.yml
+  tags: [rump]

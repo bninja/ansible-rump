@@ -1,0 +1,55 @@
+---
+
+- name: user
+  user: name=rump state=present shell=/bin/bash createhome=no home=/var/lib/rump
+
+- name: dirs
+  file: path={{ item }} owner=rump group=rump state=directory mode=0755
+  with_items:
+  - /etc/rump
+  - /etc/rump.d
+  - /var/lib/rump
+  - /var/run/rump
+  - /var/log/rump
+    
+- name: conf
+  template: src=rump.conf.j2 dest=/etc/rump/rump.conf owner=rump group=rump mode=0644
+  notify:
+  - restart rump
+
+- name: syslog conf
+  copy: src=rsyslog.conf dest=/etc/rsyslog.d/41-rump.conf owner=root group=root mode=0644
+  notify:
+  - restart rsyslog
+
+- name: log rotation
+  copy: src=logrotate dest=/etc/logrotate.d/rump owner=root group=root mode=0644
+
+- name: gunicorn conf
+  template: src=gunicorn.conf.j2 dest=/etc/rump/gunicorn.conf owner=rump group=rump mode=0644
+  notify:
+  - restart rump
+
+- name: log conf
+  template: src=log.conf.j2 dest=/etc/rump/log.conf owner=rump group=rump mode=0644
+  notify:
+  - restart rump
+
+- name: init script
+  template: src=init/gunicorn.j2 dest=/etc/init.d/rump owner=root group=root mode=0755
+  
+- name: init default
+  copy: src=init/default dest=/etc/default/rump owner=root group=root mode=0644
+
+- name: register service
+  service: name=rump enabled=off
+
+- name: enable
+  shell: date > /var/lib/rump/health
+  args:
+    creates: /var/lib/rump/health
+  when: rump_healthy
+
+- name: disable
+  file: /var/lib/rump/health state=absent
+  when: not rump_healthy

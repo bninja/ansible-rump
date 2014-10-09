@@ -1,0 +1,14 @@
+---
+
+- name: install via pip
+  pip:
+    name: "{{ rump_pip_name }}[{{ rump_pip_extras }}]"
+    state: present
+    version: "{{ rump_pip_version }}"
+  when: rump_pip_version
+
+- name: install latest via pip
+  pip:
+    name: "{{ rump_pip_name }}[{{ rump_pip_extras }}]"
+    state: present
+  when: not rump_pip_version

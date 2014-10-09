@@ -1,0 +1,95 @@
+#!/bin/sh
+
+{% block info %}
+### BEGIN INIT INFO
+# Provides:          rump
+
+# Required-Start:    $local_fs $remote_fs $network $syslog
+# Required-Stop:     $local_fs $remote_fs $network $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: starts the rump server
+# Description:       starts rump using start-stop-daemon
+### END INIT INFO
+{% endblock %}
+
+{% block env %}
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+USER=rump
+USER_ID=`id rump -u`
+NAME=rump
+DESC=rump
+RUN_DIR=/var/run/rump
+DAEMON=`which rumpd`
+CONF_DIR=/etc/rump
+PROG_CONF="${CONF_DIR}/rump.conf"
+PID_FILE="${RUN_DIR}/rump.pid"
+PID_DELAY=5
+PID_POLL=1
+{% endblock %}
+
+[ -f /etc/default/$NAME ] && . /etc/default/$NAME
+
+DAEMON_OPTS="{% block daemon_opts %}{% endblock %}"
+
+[ -d $RUN_DIR ] || install -m 755 -o $USER -g $USER -d $RUN_DIR
+
+. /lib/lsb/init-functions
+
+set -e
+
+test -x $DAEMON || exit 0
+
+{% block commands %}
+wait_for_pidfile() {
+    delay=$PID_DELAY
+    while [ "${delay}" -ne "0" ]; do
+      if [ -f ${PID_FILE} ]; then
+        return 0
+      fi
+      sleep $PID_POLL
+      delay="$(( ${delay} - 1 ))"
+    done
+    echo "wait for $PID_FILE timeout $PID_DELAY reached"
+    exit 1
+}
+
+start() {
+    echo -n "* $NAME is starting: "
+    start-stop-daemon --start --exec $DAEMON --oknodo --chuid $USER_ID -- $DAEMON_OPTS
+    wait_for_pidfile
+    echo "ok"
+}
+
+stop() {
+    echo -n "* $NAME is stopping: "
+    start-stop-daemon --stop --pidfile $PID_FILE --retry 10
+    rm -f $PID_FILE
+    echo "ok"
+}
+
+restart() {
+    echo -n "* $NAME is restarting: "
+    start-stop-daemon --stop --oknodo --pidfile $PID_FILE --retry 10 --quiet
+    rm -f $PID_FILE
+    start-stop-daemon --start --exec $DAEMON --chuid $USER_ID -- $DAEMON_OPTS
+    wait_for_pidfile
+    echo "ok"
+}
+
+status() {
+    status_of_proc -p $PID_FILE $NAME $NAME
+}
+{% endblock %}
+
+case "$1" in
+    {% block listing %}start|stop|restart|status{% endblock %})
+        $(echo $1 | sed -e 's/-/_/g')
+        ;;
+    *)
+        echo "Usage: $NAME {{ '{' }}{{ self.listing() }}{{ '} '}}" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

@@ -1,0 +1,10 @@
+---
+
+- name: start rump
+  service: name=rump state=started
+
+- name: restart rump
+  service: name=rump state=restarted
+
+- name: reload rump
+  service: name=rump state=reloaded

@@ -1,0 +1,19 @@
+---
+
+- name: create sync destination
+  file: dest="~/rump" state=directory mode=0755
+  sudo: no
+
+- name: sync source to destination
+  local_action: >
+    command
+    rsync
+    --delay-updates -FF --compress --archive 
+    --rsh 'ssh -o StrictHostKeyChecking=no -o Port={{ ansible_ssh_port }}'
+    --exclude=*.pyc --exclude=*.pyo --exclude=.*
+    --out-format='<<CHANGED>>%i %n%L'
+    {{ rump_sync_src | expanduser }} {{ ansible_ssh_user }}@{{ inventory_hostname }}:/home/{{ ansible_ssh_user }}
+  sudo: no
+
+- name: install from source
+  pip: name="/home/{{ ansible_ssh_user }}/rump[{{ rump_sync_extras }}]" extra_args=-e

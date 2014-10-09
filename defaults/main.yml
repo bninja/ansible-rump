@@ -1,0 +1,37 @@
+---
+
+# install
+
+rump_install_method: pip
+
+rump_pip_name: rump
+rump_pip_version: # defaults to latest
+rump_pip_extras: redis,kazoo,gunicorn
+
+rump_git_repo: "ssh://git@github.com/bninja/rump.git"
+rump_git_version: HEAD
+rump_git_extras: redis,kazoo,gunicorn
+
+rump_sync_src: ~/code/rump
+rump_sync_extras: redis,kazoo,gunicorn
+
+# base
+
+rump_syslog_port: 514
+rump_log_level: INFO
+
+# init
+
+rump_host: 0.0.0.0
+rump_port: 4114
+rump_connections: 1000
+rump_backlog: 2048
+rump_keepalive: 5
+rump_healthy: true
+rump_proxies: [10/8, 127.0.0.1]
+rump_access_format: >
+  %(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
+  request_time_seconds=%(T)s
+  request_time_microseconds=%(D)s
+  trace_id=%({x-rump-id}o)s
+  version=%({x-rump-version}o)s

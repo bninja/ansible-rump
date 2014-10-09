@@ -1,0 +1,71 @@
+{% extends "base.j2" %}
+{% block env %}
+{{ super() }}
+OLD_PID_FILE="${PID_FILE}.oldbin"
+GUNICORN_CONF="${CONF_DIR}/gunicorn.conf"
+GUNICORN_OPTS=
+{% endblock %}
+
+{% block daemon_opts %}gunicorn -- -c $GUNICORN_CONF -D -p $PID_FILE $GUNICORN_OPTS{% endblock %}
+
+{% block commands %}
+{{ super() }}
+
+restart() {
+    echo -n "* $NAME is restarting: "
+    start-stop-daemon --stop --oknodo --pidfile $PID_FILE --retry 10 --quiet
+    rm -f $PID_FILE
+    start-stop-daemon --start --exec $DAEMON --chuid $USER_ID -- $DAEMON_OPTS
+    wait_for_pidfile
+    echo "ok"
+}
+
+force_reload() {
+    restart
+}
+
+reload() {
+    echo -n "* $NAME is reloading: "
+    start-stop-daemon --stop --pidfile $PID_FILE --signal HUP
+    echo "ok"
+}
+
+test_config() {
+    echo -n "* testing $NAME config: "
+    if $PROG test -c $PROG_CONF >/dev/null 2>&1; then
+        echo "ok"
+        return 0
+    else
+        $PROG test -c $PROG_CONF -l info
+        return $?
+    fi
+}
+
+upgrade() {
+    begin_upgrade
+    sleep $UPGRADE_DELAY
+    finish_upgrade
+}
+
+begin_upgrade() {
+    echo -n "* initiating $NAME upgrade: "
+    start-stop-daemon --stop --signal USR2 --pidfile $PID_FILE
+    echo "ok"
+}
+
+rollback_upgrade() {
+    echo -n "* rolling back $NAME upgrade: "
+    start-stop-daemon --stop --signal QUIT --pidfile $PID_FILE
+    start-stop-daemon --stop --pidfile $PID_FILE --retry 10
+    echo "ok"
+}
+
+finish_upgrade() {
+    echo -n "* finishing $NAME upgrade: "
+    start-stop-daemon --stop --signal 28 --pidfile $OLD_PID_FILE  # WINCH == 28
+    start-stop-daemon --stop --signal QUIT --pidfile $OLD_PID_FILE
+    echo "ok"
+}
+{% endblock %}
+
+{% block listing %}{{ super() }}|reload|force-reload|upgrade|begin-upgrade|rollback-upgrade|finish-upgrade{% endblock %}

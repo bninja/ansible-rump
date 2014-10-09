@@ -1,0 +1,101 @@
+{
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'level': 'NOTSET',
+            'formatter': 'console',
+            'stream': None,  # stderr
+            'filters': ['version', 'trace'],
+        },
+        'syslog-error': {
+            'class': 'logging.handlers.SysLogHandler',  # defaults to UDP
+            'level': 'NOTSET',
+            'formatter': 'syslog-error',
+            'address': ('127.0.0.1', {{ rump_syslog_port }}),
+            'filters': ['version', 'trace'],
+        },
+        'syslog-request': {
+            'class': 'logging.handlers.SysLogHandler',  # defaults to UDP
+            'level': 'INFO',
+            'formatter': 'syslog-request',
+            'address': ('127.0.0.1', {{ rump_syslog_port }}),
+            'filters': ['version'],
+        },
+        'syslog-access': {
+            'class': 'logging.handlers.SysLogHandler',  # defaults to UDP
+            'level': 'INFO',
+            'formatter': 'syslog-access',
+            'address': ('127.0.0.1', {{ rump_syslog_port }}),
+            'filters': ['version', 'trace'],
+        },
+    },
+    'formatters': {
+         'console': {
+            'format': (
+                '%(asctime)s,%(msecs)03d : '
+                '%(levelname)-5.5s : '
+                '%(name)s : '
+                '%(message)s'
+            ),
+            'datefmt': '%H:%M:%S',
+        },
+        'syslog-error': {
+            'format': (
+                'rump-error[%(process)d]: '
+                '%(asctime)s : '
+                '%(levelname)s : '
+                '%(name)s : '
+                '%(process)d : '
+                '%(threadName)s : '
+                'version=%(version)s : '
+                'trace_id=%(trace_id)s : '
+                '%(message)s'
+            ),
+        },
+        'syslog-request': {
+            '()': logger_class.NoExcTextLogFormatter,
+            'format': 'rump-request[%(process)d]: %(message)s',
+        },
+        'syslog-access': {
+            '()': logger_class.NoExcTextLogFormatter,
+            'format': 'rump-access[%(process)d]: %(message)s',
+        },
+    },
+    'filters': {
+        'trace': {
+            '()': logger_class.TraceIdLogFilter,
+        },
+        'version': {
+            '()': logger_class.VersionLogFilter,
+        },
+    },
+    'loggers': {
+        'sqlalchemy': {
+            'level': 'WARN',
+            'qualname': 'sqlalchemy.engine',
+            'propagate': True,
+        },
+        'gunicorn': {
+            'qualname': 'gunicorn',
+            'propagate': True,
+        },
+        'gunicorn.access': {
+            'level': 'INFO',
+            'qualname': 'gunicorn.access',
+            'propagate': False,
+            'handlers': ['console', 'syslog-access'],
+        },
+        'rump-request': {
+            'level': 'INFO',
+            'qualname': 'rump-request',
+            'propagate': False,
+            'handlers': ['syslog-request'],
+        },
+    },
+    'root': {
+        'level': log_level,
+        'handlers': ['console', 'syslog-error'],
+    },
+}

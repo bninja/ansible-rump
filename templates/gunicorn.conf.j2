@@ -1,0 +1,105 @@
+import logging
+import os
+import multiprocessing
+
+import gunicorn.glogging
+import wsgim_rip
+
+
+bind = '{{ rump_host }}:{{ rump_port }}'
+
+backlog = {{ rump_backlog }}
+
+connections = {{ rump_connections }}
+
+keepalive = {{ rump_keepalive }}
+
+loglevel = '{{ rump_log_level }}'
+
+logconfig = '/etc/rump/log.conf'
+
+error_logfile = '-'
+
+access_logfile = '-'
+
+workers = multiprocessing.cpu_count() * 2 + 1
+
+worker_class = 'gevent'
+
+proc_name = 'rump'
+
+access_log_format = '{{ rump_access_format.strip() }}'
+
+
+class logger_class(gunicorn.glogging.Logger):
+
+    class NoExcTextLogFormatter(logging.Formatter):
+
+        def format(self, record):
+            record.message = record.getMessage()
+            if self.usesTime():
+                record.asctime = self.formatTime(record, self.datefmt)
+            s = self._fmt % record.__dict__
+            return s
+
+    class VersionLogFilter(logging.Filter):
+
+        version = None
+        
+        def __init__(self, default='-'):
+            super(logger_class.VersionLogFilter, self).__init__()
+            self.default = default
+
+        def filter(self, record):
+            record.version = self.version or self.default
+            return True
+
+    class TraceIdLogFilter(logging.Filter):
+      
+        get_trace_id = None
+
+        def __init__(self, default='-'):
+            super(logger_class.TraceIdLogFilter, self).__init__()
+            self.default = default
+
+        def filter(self, record):
+            if self.get_trace_id:
+                record.trace_id = self.get_trace_id() or self.default
+            else:
+                record.trace_id = self.default
+            return True
+
+    @classmethod
+    def fixup(cls, rump):
+        cls.VersionLogFilter.version = rump.__version__
+        cls.TraceIdLogFilter.get_trace_id = staticmethod(lambda: rump.wsgi.tracer.id)
+
+    def setup(self, cfg):
+        if not cfg.logconfig:
+            super(logger_class, self).setup(cfg)
+        else:
+            if os.path.exists(cfg.logconfig):
+                logconfig = eval(open(cfg.logconfig, 'r').read(), {
+                    'logger_class': self,
+                    'log_level': cfg.loglevel.upper(),
+                })
+                logging.config.dictConfig(logconfig)
+            else:
+                raise RuntimeError("Error: log config '%s' not found" % cfg.logconfig)
+
+
+def post_worker_init(worker):
+    import rump
+    
+    logger_class.fixup(rump)
+    rump.wsgi.app.settings.from_env()
+    rump.wsgi.app.setup()
+    if rump.wsgi.app.settings.proxies:
+        worker.app.callable = wsgim_rip.RIPMiddleware(
+            worker.app.callable,
+            internal=rump.wsgi.app.settings.proxies,
+        )
+
+
+def worker_exit(server, worker):
+    rump.wsgi.app.teardown()
