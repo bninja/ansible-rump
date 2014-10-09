@@ -8,3 +8,9 @@
 
 - name: reload rump
   service: name=rump state=reloaded
+
+- name: restart rsyslog
+  service: name=rsyslog state=restarted
+
+- name: reload rsyslog
+  service: name=rsyslog state=reloaded

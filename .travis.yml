@@ -5,7 +5,6 @@ install:
   - sudo apt-get install -qq python-apt python-pycurl python-pip
   - sudo pip install "ansible>=1.7.0,<1.8"
   - sudo pip install pip -U
-  - git clone https://github.com/rothgar/ansible-rsyslog.git ../rsyslog
 before_script:
   - cd test
 script:
